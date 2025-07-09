@@ -45,12 +45,13 @@ def build_filter_chain(clips, per_image_duration):
     
     return filter_chain, "[outv]"
 
-def generate_final_video(clips, audio_path, srt_path, output_path, filter_complex, final_label):
+def generate_final_video(clips, audio_path, ass_path, output_path, filter_complex, final_label):
+    subtitle_filter = f"ass={ass_path}"
     cmd = [
         FFMPEG, "-y"
     ] + sum([["-i", clip] for clip in clips], []) + [
         "-i", audio_path,
-        "-filter_complex", filter_complex + f";{final_label}subtitles={srt_path}:force_style='FontSize=20,FontName=Lava Devanagari,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,BackColour=&H80000000,Outline=1,Shadow=1',format=yuv420p[v]",
+        "-filter_complex", filter_complex + f";{final_label}{subtitle_filter},format=yuv420p[v]",
         "-map", "[v]",
         "-map", f"{len(clips)}:a",
         "-c:v", "libx264",
@@ -69,7 +70,7 @@ def main(folder_path):
     images = sorted([os.path.join(folder_path, f) for f in os.listdir(folder_path)
                      if f.lower().endswith(('.png', '.jpg', '.jpeg'))])
     audio_path = os.path.join(folder_path, "audio.mp3")
-    srt_path = os.path.join(folder_path, "output.srt")
+    ass_path = os.path.join(folder_path, "output.ass")
     output_path = os.path.join(folder_path, "final_video.mp4")
     temp_dir = os.path.join(folder_path, "temp_clips")
     
@@ -77,8 +78,8 @@ def main(folder_path):
         raise ValueError(f"No image files found in {folder_path}")
     if not os.path.exists(audio_path):
         raise ValueError(f"Audio file not found: {audio_path}")
-    if not os.path.exists(srt_path):
-        raise ValueError(f"SRT file not found: {srt_path}")
+    if not os.path.exists(ass_path):
+        raise ValueError(f"ASS file not found: {ass_path}")
     
     # Create temp directory
     os.makedirs(temp_dir, exist_ok=True)
@@ -93,7 +94,7 @@ def main(folder_path):
         filter_complex, final_label = build_filter_chain(clips, per_image_duration)
         
         print("Generating final video...")
-        generate_final_video(clips, audio_path, srt_path, output_path, filter_complex, final_label)
+        generate_final_video(clips, audio_path, ass_path, output_path, filter_complex, final_label)
 
         print(f"✅ Video created at: {output_path}")
         
@@ -109,6 +110,6 @@ def main(folder_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("folder", help="Folder containing images, audio.mp3, and output.srt")
+    parser.add_argument("folder", help="Folder containing images, audio.mp3, and output.ass")
     args = parser.parse_args()
     main(args.folder)
