@@ -3,6 +3,7 @@ import subprocess
 import shutil
 from mutagen.mp3 import MP3
 import argparse
+import re
 
 FFMPEG = "/opt/homebrew/bin/ffmpeg"
 
@@ -65,12 +66,110 @@ def generate_final_video(clips, audio_path, ass_path, output_path, filter_comple
     if result.returncode != 0:
         raise RuntimeError("Failed to generate final video")
 
-def main(folder_path):
+def srt_time_to_ass_time(srt_time):
+    h, m, s_ms = srt_time.split(':')
+    s, ms = s_ms.split(',')
+    h = str(int(h))
+    ms = str(int(round(int(ms) / 10.0))).zfill(2)
+    return f"{h}:{m}:{s}.{ms}"
+
+def convert_srt_to_ass(srt_path, ass_path, style="modern"):
+    """Convert SRT to ASS format with custom styling for reels"""
+    
+    # Different style options for reels
+    styles = {
+        "modern": {
+            "font": "Lava Devanagari",
+            "size": "23",
+            "outline": "1",
+            "shadow": "1",
+            "margin_v": "120",
+            "alignment": "2"  # Center
+        },
+        "elegant": {
+            "font": "Lava Devanagari",
+            "size": "48",
+            "outline": "2",
+            "shadow": "1",
+            "margin_v": "100",
+            "alignment": "2"  # Center
+        },
+        "bold": {
+            "font": "Lava Devanagari",
+            "size": "56",
+            "outline": "4",
+            "shadow": "3",
+            "margin_v": "140",
+            "alignment": "2"  # Center
+        },
+        "minimal": {
+            "font": "Lava Devanagari",
+            "size": "44",
+            "outline": "1",
+            "shadow": "0",
+            "margin_v": "80",
+            "alignment": "2"  # Center
+        }
+    }
+    
+    selected_style = styles.get(style, styles["modern"])
+    
+    # ASS header with custom styling
+    ass_header = f"""[Script Info]
+Title: Reel Subtitles
+ScriptType: v4.00+
+WrapStyle: 1
+ScaledBorderAndShadow: yes
+YCbCr Matrix: TV.601
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,{selected_style['font']},{selected_style['size']},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,{selected_style['outline']},{selected_style['shadow']},{selected_style['alignment']},50,50,{selected_style['margin_v']},1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+    
+    with open(srt_path, 'r', encoding='utf-8') as f:
+        srt_content = f.read()
+    
+    # Parse SRT content
+    subtitle_blocks = srt_content.strip().split('\n\n')
+    ass_events = []
+    
+    for block in subtitle_blocks:
+        lines = block.strip().split('\n')
+        if len(lines) >= 3:
+            # Skip subtitle number
+            time_line = lines[1]
+            text_lines = lines[2:]
+            
+            # Parse time
+            time_match = re.match(r'(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})', time_line)
+            if time_match:
+                start_time = srt_time_to_ass_time(time_match.group(1))
+                end_time = srt_time_to_ass_time(time_match.group(2))
+                
+                # Combine text lines
+                text = '\\N'.join(text_lines)
+                
+                # Create ASS event line
+                ass_event = f"Dialogue: 0,{start_time},{end_time},Default,,0,0,0,,{text}"
+                ass_events.append(ass_event)
+    
+    # Write ASS file
+    with open(ass_path, 'w', encoding='utf-8') as f:
+        f.write(ass_header)
+        f.write('\n'.join(ass_events))
+    
+    return ass_path
+
+def main(folder_path, style="modern"):
     # Validate input files
     images = sorted([os.path.join(folder_path, f) for f in os.listdir(folder_path)
                      if f.lower().endswith(('.png', '.jpg', '.jpeg'))])
     audio_path = os.path.join(folder_path, "audio.mp3")
-    ass_path = os.path.join(folder_path, "output.ass")
+    srt_path = os.path.join(folder_path, "output.srt")
     output_path = os.path.join(folder_path, "final_video.mp4")
     temp_dir = os.path.join(folder_path, "temp_clips")
     
@@ -78,8 +177,8 @@ def main(folder_path):
         raise ValueError(f"No image files found in {folder_path}")
     if not os.path.exists(audio_path):
         raise ValueError(f"Audio file not found: {audio_path}")
-    if not os.path.exists(ass_path):
-        raise ValueError(f"ASS file not found: {ass_path}")
+    if not os.path.exists(srt_path):
+        raise ValueError(f"SRT file not found: {ass_path}")
     
     # Create temp directory
     os.makedirs(temp_dir, exist_ok=True)
@@ -92,7 +191,8 @@ def main(folder_path):
         
         clips = generate_clip_commands(images, per_image_duration, temp_dir)
         filter_complex, final_label = build_filter_chain(clips, per_image_duration)
-        
+        ass_path = convert_srt_to_ass(srt_path, os.path.join(temp_dir, "output.ass"), style)
+
         print("Generating final video...")
         generate_final_video(clips, audio_path, ass_path, output_path, filter_complex, final_label)
 
@@ -111,5 +211,7 @@ def main(folder_path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("folder", help="Folder containing images, audio.mp3, and output.ass")
+    parser.add_argument("--style", choices=["modern", "elegant", "bold", "minimal"], 
+                       default="modern", help="Subtitle style for reels")
     args = parser.parse_args()
-    main(args.folder)
+    main(args.folder, args.style)
