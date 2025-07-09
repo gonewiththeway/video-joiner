@@ -50,7 +50,7 @@ def generate_final_video(clips, audio_path, srt_path, output_path, filter_comple
         FFMPEG, "-y"
     ] + sum([["-i", clip] for clip in clips], []) + [
         "-i", audio_path,
-        "-filter_complex", filter_complex + f";{final_label}subtitles={srt_path},format=yuv420p[v]",
+        "-filter_complex", filter_complex + f";{final_label}subtitles={srt_path}:force_style='FontSize=20,FontName=Lava Devanagari,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,BackColour=&H80000000,Outline=1,Shadow=1',format=yuv420p[v]",
         "-map", "[v]",
         "-map", f"{len(clips)}:a",
         "-c:v", "libx264",
