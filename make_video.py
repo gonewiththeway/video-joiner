@@ -30,14 +30,21 @@ def generate_clip_commands(images, per_image_duration, temp_dir):
     return clips
 
 def build_filter_chain(clips, per_image_duration):
-    # Use a simpler approach with concat filter instead of xfade
-    # This avoids frame rate issues with xfade
+    # Add fade in/out effects with concat filter
     filter_chain = ""
     filter_labels = []
     
-    # First, ensure all clips have the same frame rate and format
+    fade_duration = 0.5  # 0.5 seconds for fade in/out
+    
     for i in range(len(clips)):
-        filter_chain += f"[{i}:v]fps=30,setpts=PTS-STARTPTS[v{i}];"
+        # Add fade in for first clip, fade out for last clip, and both for middle clips
+        if i == 0:  # First clip - fade in only
+            filter_chain += f"[{i}:v]fps=30,setpts=PTS-STARTPTS,fade=t=in:st=0:d={fade_duration}[v{i}];"
+        elif i == len(clips) - 1:  # Last clip - fade out only
+            filter_chain += f"[{i}:v]fps=30,setpts=PTS-STARTPTS,fade=t=out:st={per_image_duration-fade_duration}:d={fade_duration}[v{i}];"
+        else:  # Middle clips - fade in and out
+            filter_chain += f"[{i}:v]fps=30,setpts=PTS-STARTPTS,fade=t=in:st=0:d={fade_duration},fade=t=out:st={per_image_duration-fade_duration}:d={fade_duration}[v{i}];"
+        
         filter_labels.append(f"[v{i}]")
     
     # Use concat filter for smooth transitions
