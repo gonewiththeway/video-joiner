@@ -3,3 +3,4 @@ pillow
 imageio
 imageio-ffmpeg
 numpy 
+mutagen
