@@ -83,12 +83,12 @@ def convert_srt_to_ass(srt_path, ass_path, style="modern"):
             "size": "23",
             "outline": "1",
             "shadow": "1",
-            "margin_v": "120",
+            "margin_v": "40",
             "alignment": "2"  # Center
         },
         "elegant": {
             "font": "Lava Devanagari",
-            "size": "48",
+            "size": "23",
             "outline": "2",
             "shadow": "1",
             "margin_v": "100",
@@ -96,7 +96,7 @@ def convert_srt_to_ass(srt_path, ass_path, style="modern"):
         },
         "bold": {
             "font": "Lava Devanagari",
-            "size": "56",
+            "size": "23",
             "outline": "4",
             "shadow": "3",
             "margin_v": "140",
@@ -104,7 +104,7 @@ def convert_srt_to_ass(srt_path, ass_path, style="modern"):
         },
         "minimal": {
             "font": "Lava Devanagari",
-            "size": "44",
+            "size": "23",
             "outline": "1",
             "shadow": "0",
             "margin_v": "80",
