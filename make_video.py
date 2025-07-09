@@ -34,7 +34,7 @@ def build_filter_chain(clips, per_image_duration):
     filter_chain = ""
     filter_labels = []
     
-    fade_duration = 0.5  # 0.5 seconds for fade in/out
+    fade_duration = 1.0  # 1.0 seconds for fade in/out (increased from 0.5)
     
     for i in range(len(clips)):
         # Add fade in for first clip, fade out for last clip, and both for middle clips
