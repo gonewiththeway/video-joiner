@@ -12,6 +12,7 @@ __pycache__/
 *.ts, 
 *.mov
 .venv
+partial_movie_file_list.txt
 .vscode
 .idea
 .pytest_cache

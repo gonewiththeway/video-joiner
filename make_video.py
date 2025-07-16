@@ -15,17 +15,57 @@ def generate_clip_commands(images, per_image_duration, temp_dir):
     clips = []
     for i, img in enumerate(images):
         out = os.path.join(temp_dir, f"clip_{i}.mp4")
+        
+        # Create a temporary Manim scene file for this image
+        scene_content = f'''from manim import *
+
+# Set custom config BEFORE defining the scene
+config.pixel_height = 1920
+config.pixel_width = 1080
+config.frame_height = 14.4  # default height in manim units
+config.frame_width = config.pixel_width * config.frame_height / config.pixel_height
+
+class KenBurnsEffect(Scene):
+    def construct(self):
+        img = ImageMobject("{img}")
+        img.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
+
+        img.set_height(config.frame_height)
+        img.scale(1.2)
+        self.add(img)
+
+        self.play(
+            img.animate.scale(1.3 / 1.2).shift(UP * 1.2),
+            run_time={per_image_duration},
+            rate_func=smooth
+        )
+'''
+        
+        # Write the temporary scene file
+        scene_file = os.path.join(temp_dir, f"scene_{i}.py")
+        with open(scene_file, 'w') as f:
+            f.write(scene_content)
+        
+        # Run Manim to generate the clip
         cmd = [
-            FFMPEG, "-y",
-            "-loop", "1", "-t", str(per_image_duration),
-            "-i", img,
-            "-vf", "scale=1080:1920",  # vertical video
-            "-r", "30", "-pix_fmt", "yuv420p",
-            "-c:v", "libx264", out
+            "manim", "-pqh", scene_file, "KenBurnsEffect",
+            "--media_dir", temp_dir,
+            "--output_file", f"clip_{i}.mp4"
         ]
+        
         result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if result.returncode != 0:
             raise RuntimeError(f"Failed to generate clip {i} from {img}")
+        
+        # Find the generated video file in Manim's output structure
+        # Manim creates: temp_dir/videos/scene_X/1920p60/clip_X.mp4
+        generated_video = os.path.join(temp_dir, "videos", f"scene_{i}", "1920p60", f"clip_{i}.mp4")
+        if os.path.exists(generated_video):
+            # Copy to our desired output name
+            shutil.copy2(generated_video, out)
+        else:
+            raise RuntimeError(f"Generated video not found at expected location: {generated_video}")
+        
         clips.append(out)
     return clips
 
