@@ -2,6 +2,7 @@ from vosk import Model, KaldiRecognizer
 import wave
 import json
 import os
+import re
 
 def format_time_ass(seconds):
     h = int(seconds // 3600)
@@ -10,8 +11,44 @@ def format_time_ass(seconds):
     cs = int((seconds - int(seconds)) * 100)  # centiseconds for ASS
     return f"{h}:{m:02}:{s:02}.{cs:02}"
 
-def generate_ass_subtitles(audio_path, ass_path, model_path="vosk-model-small-hi-0.22"):
-    # Load the model
+def is_sentence_end(word):
+    # Check if word ends a sentence (has punctuation)
+    return word['word'].strip().endswith(('.', '।', '!', '?', ':'))
+
+def create_phrase_chunks(all_words, max_words_per_chunk=4):
+    # Group words into phrases/chunks with natural breaks
+    chunks = []
+    current_chunk = []
+
+    for word in all_words:
+        current_chunk.append(word)
+
+        # Break chunk if:
+        # 1. We've reached max words
+        # 2. Word ends a sentence
+        # 3. There's a significant pause (gap > 0.5s)
+        should_break = False
+
+        if len(current_chunk) >= max_words_per_chunk:
+            should_break = True
+        elif is_sentence_end(word):
+            should_break = True
+        elif len(current_chunk) > 1:
+            # Check for pause (gap > 0.5s between words)
+            prev_word = current_chunk[-2]
+            gap = word['start'] - prev_word['end']
+            if gap > 0.5:
+                should_break = True
+
+        if should_break:
+            chunks.append(current_chunk)
+            current_chunk = []
+    if current_chunk:
+        chunks.append(current_chunk)
+
+    return chunks
+
+def generate_ass_subtitles(audio_path, ass_path, model_path="vosk-model-small-hi-0.22", max_words_per_chunk=4):
     model = Model(model_path)
     wf = wave.open(audio_path, "rb")
     rec = KaldiRecognizer(model, wf.getframerate())
@@ -26,7 +63,16 @@ def generate_ass_subtitles(audio_path, ass_path, model_path="vosk-model-small-hi
             results.append(json.loads(rec.Result()))
     results.append(json.loads(rec.FinalResult()))
 
-    # ASS header with two styles: normal and highlight
+    # Collect all words with timing
+    all_words = []
+    for r in results:
+        if 'result' not in r:
+            continue
+        all_words.extend(r['result'])
+
+    # Create phrase chunks
+    chunks = create_phrase_chunks(all_words, max_words_per_chunk)
+
     ass_header = '''[Script Info]
 Title: Word Highlight Subtitles
 ScriptType: v4.00+
@@ -37,29 +83,44 @@ YCbCr Matrix: TV.601
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Default,Lava Devanagari,40,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,2,1,2,50,50,40,1
-Style: Highlight,Lava Devanagari,40,&H0000FFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,4,2,2,50,50,40,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 '''
 
     events = []
-    index = 1
-    for r in results:
-        if 'result' not in r:
-            continue
-        words = r['result']
-        # Option 1: Only show the current word (most common for reels)
-        for word in words:
-            start = word['start']
-            end = word['end']
-            text = word['word']
-            start_ass = format_time_ass(start)
-            end_ass = format_time_ass(end)
-            # Highlight style for the word
-            events.append(f"Dialogue: 0,{start_ass},{end_ass},Highlight,,0,0,0,,{text}")
-            index += 1
-        # Option 2: If you want to show the whole line and highlight the current word, you can build the line and use ASS override tags, but for now, we use Option 1.
+
+    for chunk_idx, chunk in enumerate(chunks):
+        phrase_words = [w['word'] for w in chunk]
+        for i, word in enumerate(chunk):
+            # Build the phrase, highlighting only the current word
+            text_parts = []
+            for j, w in enumerate(chunk):
+                if i == j:
+                    # Highlight current word
+                    text_parts.append(r'{\b1\c&H00FFFF&\3c&H000000&}' + w['word'] + r'{\r}')
+                else:
+                    text_parts.append(w['word'])
+            text = ' '.join(text_parts)
+
+            # Start time: current word start
+            start_time = format_time_ass(word['start'])
+
+            # End time: next word start (or next phrase start if last word)
+            if i < len(chunk) - 1:
+                # Not the last word - end when next word starts
+                end_time = format_time_ass(chunk[i + 1]['start'])
+            else:
+                # Last word in the phrase
+                if chunk_idx < len(chunks) - 1:
+                    # Not the last phrase - end when next phrase starts
+                    next_phrase_start = chunks[chunk_idx + 1][0]['start']
+                    end_time = format_time_ass(next_phrase_start)
+                else:
+                    # Last phrase - end when the word ends
+                    end_time = format_time_ass(word['end'])
+
+            events.append(f"Dialogue: 0,{start_time},{end_time},Default,,0,0,0,,{text}")
 
     with open(ass_path, 'w', encoding='utf-8') as f:
         f.write(ass_header)
@@ -67,6 +128,5 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
     return ass_path
 
-# If run as a script, generate subtitles for output.wav -> subtitles.ass
 if __name__ == "__main__":
-    generate_ass_subtitles("output.wav", "subtitles.ass")
+    generate_ass_subtitles("output.wav", "subtitles.ass") 
