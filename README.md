@@ -21,7 +21,8 @@ Before running the script, you need to provide these files:
 1. Activate the virtual environment:
 
    ```bash
-   source env/bin/activate
+
+
    ```
 
 2. Run the script:
@@ -55,3 +56,5 @@ You can modify the following settings in the script:
 - Images are displayed in alphabetical order
 - Text is split evenly across all images
 - Video output is at 24 FPS
+
+https://alphacephei.com/vosk/models vosk-model-small-hi-0.22 model

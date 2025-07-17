@@ -12,6 +12,7 @@ __pycache__/
 *.ts, 
 *.mov
 .venv
+vosk-model-small-hi-0.22/
 partial_movie_file_list.txt
 .vscode
 .idea
