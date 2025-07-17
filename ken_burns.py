@@ -9,7 +9,7 @@ config.frame_width = config.pixel_width * config.frame_height / config.pixel_hei
 class KenBurnsEffect(Scene):
     def construct(self):
         img = ImageMobject("/Users/atulpurohit/workspace/personal/video/output/9/1.png")
-        img.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
+        img.set_resampling_algorithm(RESAMPLING_ALGORITHMS["bilinear"])
 
         img.set_height(config.frame_height)
         img.scale(1.2)
