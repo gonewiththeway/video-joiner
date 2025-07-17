@@ -8,6 +8,7 @@ __pycache__/
 *.pywz
 *.pyzw
 *.pyzwz
+*.srt
 .env
 *.ts, 
 *.mov
