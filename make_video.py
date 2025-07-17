@@ -13,33 +13,20 @@ def get_audio_duration(audio_path):
 
 def generate_clip_commands(images, per_image_duration, temp_dir):
     clips = []
+    # Read the existing ken_burns.py template
+    template_path = "ken_burns.py"
+    with open(template_path, 'r') as f:
+        template_content = f.read()
+    
     for i, img in enumerate(images):
         out = os.path.join(temp_dir, f"clip_{i}.mp4")
         
-        # Create a temporary Manim scene file for this image
-        scene_content = f'''from manim import *
-
-# Set custom config BEFORE defining the scene
-config.pixel_height = 1920
-config.pixel_width = 1080
-config.frame_height = 14.4  # default height in manim units
-config.frame_width = config.pixel_width * config.frame_height / config.pixel_height
-
-class KenBurnsEffect(Scene):
-    def construct(self):
-        img = ImageMobject("{img}")
-        img.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
-
-        img.set_height(config.frame_height)
-        img.scale(1.2)
-        self.add(img)
-
-        self.play(
-            img.animate.scale(1.3 / 1.2).shift(UP * 1.2),
-            run_time={per_image_duration},
-            rate_func=smooth
+        # Create a temporary Manim scene file by replacing placeholders
+        scene_content = template_content.replace(
+            "{{IMAGE_PATH}}", img
+        ).replace(
+            "{{RUN_TIME}}", str(per_image_duration)
         )
-'''
         
         # Write the temporary scene file
         scene_file = os.path.join(temp_dir, f"scene_{i}.py")
@@ -58,7 +45,6 @@ class KenBurnsEffect(Scene):
             raise RuntimeError(f"Failed to generate clip {i} from {img}")
         
         # Find the generated video file in Manim's output structure
-        # Manim creates: temp_dir/videos/scene_X/1920p60/clip_X.mp4
         generated_video = os.path.join(temp_dir, "videos", f"scene_{i}", "1920p60", f"clip_{i}.mp4")
         if os.path.exists(generated_video):
             # Copy to our desired output name
