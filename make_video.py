@@ -35,7 +35,7 @@ def generate_clip_commands(images, per_image_duration, temp_dir):
         
         # Run Manim to generate the clip
         cmd = [
-            "manim", "-pqh", scene_file, "KenBurnsEffect",
+            "manim", "-qh", scene_file, "KenBurnsEffect",
             "--media_dir", temp_dir,
             "--output_file", f"clip_{i}.mp4"
         ]
