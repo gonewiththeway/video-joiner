@@ -3,6 +3,7 @@ import wave
 import json
 import os
 import re
+import pathlib
 
 def format_time_ass(seconds):
     h = int(seconds // 3600)
@@ -48,7 +49,10 @@ def create_phrase_chunks(all_words, max_words_per_chunk=4):
 
     return chunks
 
-def generate_ass_subtitles(audio_path, ass_path, model_path="vosk-model-small-hi-0.22", max_words_per_chunk=4):
+def generate_ass_subtitles(audio_path, ass_path, model_path=None, max_words_per_chunk=4):
+    # Use absolute path for model if not provided
+    if model_path is None:
+        model_path = str(pathlib.Path(__file__).parent / "vosk-model-small-hi-0.22")
     model = Model(model_path)
     wf = wave.open(audio_path, "rb")
     rec = KaldiRecognizer(model, wf.getframerate())

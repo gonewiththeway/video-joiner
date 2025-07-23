@@ -4,6 +4,7 @@ import shutil
 from mutagen.mp3 import MP3
 import argparse
 import re
+import pathlib
 from generate_subs import generate_ass_subtitles
 
 FFMPEG = "/opt/homebrew/bin/ffmpeg"
@@ -15,7 +16,7 @@ def get_audio_duration(audio_path):
 def generate_clip_commands(images, per_image_duration, temp_dir):
     clips = []
     # Read the existing ken_burns.py template
-    template_path = "ken_burns.py"
+    template_path = pathlib.Path(__file__).parent / "ken_burns.py"
     with open(template_path, 'r') as f:
         template_content = f.read()
     
@@ -34,9 +35,10 @@ def generate_clip_commands(images, per_image_duration, temp_dir):
         with open(scene_file, 'w') as f:
             f.write(scene_content)
         
-        # Run Manim to generate the clip
+        # Run Manim to generate the clip using the virtual environment's python
+        venv_python = str(pathlib.Path(__file__).parent / "env" / "bin" / "python")
         cmd = [
-            "manim", "-qh", scene_file, "KenBurnsEffect",
+            venv_python, "-m", "manim", "-qh", scene_file, "KenBurnsEffect",
             "--media_dir", temp_dir,
             "--output_file", f"clip_{i}.mp4"
         ]
