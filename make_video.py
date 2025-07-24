@@ -108,7 +108,8 @@ def main(folder_path, style="modern"):
                      if f.lower().endswith((".png", ".jpg", ".jpeg"))])
     audio_path = os.path.join(folder_path, "audio.mp3")
     wav_path = os.path.join(folder_path, "audio.wav")
-    output_path = os.path.join(folder_path, "final_video.mp4")
+    output_filename = os.path.basename(os.path.normpath(folder_path)) + ".mp4"
+    output_path = os.path.join(folder_path, output_filename)
     temp_dir = os.path.join(folder_path, "temp_clips")
     ass_path = os.path.join(temp_dir, "subtitles.ass")
 
