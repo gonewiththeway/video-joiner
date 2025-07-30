@@ -133,7 +133,7 @@ def main(folder_path, style="modern"):
         
         # Generate .ass subtitles with word-level highlighting
         print("Generating subtitles...")
-        # generate_ass_subtitles(wav_path, ass_path)
+        generate_ass_subtitles(wav_path, ass_path)
 
         print("Generating clips...")
         clips = generate_clip_commands(images, per_image_duration, temp_dir)
