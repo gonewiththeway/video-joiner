@@ -131,16 +131,20 @@ def main(folder_path, style="modern"):
 
         print(f"Processing {len(images)} images with {per_image_duration:.2f}s per image...")
         
+        # Generate .ass subtitles with word-level highlighting
+        print("Generating subtitles...")
+        # generate_ass_subtitles(wav_path, ass_path)
+
+        print("Generating clips...")
         clips = generate_clip_commands(images, per_image_duration, temp_dir)
         filter_complex, final_label = build_filter_chain(clips, per_image_duration)
         
-        # Generate .ass subtitles with word-level highlighting
-        generate_ass_subtitles(wav_path, ass_path)
-
         print("Generating final video...")
         generate_final_video(clips, audio_path, ass_path, output_path, filter_complex, final_label)
 
         print(f"✅ Video created at: {output_path}")
+        # os.remove(wav_path)
+        # shutil.rmtree(temp_dir)
         
     except Exception as e:
         print(f"❌ Error: {e}")

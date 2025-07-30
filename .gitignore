@@ -14,6 +14,7 @@ __pycache__/
 *.mov
 .venv
 vosk-model-small-hi-0.22/
+vosk-model-hi-0.22/
 partial_movie_file_list.txt
 .vscode
 .idea
