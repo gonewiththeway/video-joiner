@@ -26,6 +26,7 @@ Before running the script, you need to provide these files:
    ```
 
 2. Run the script:
+
    ```bash
    python3 video_generator.py
    ```
@@ -57,4 +58,20 @@ You can modify the following settings in the script:
 - Text is split evenly across all images
 - Video output is at 24 FPS
 
-https://alphacephei.com/vosk/models vosk-model-small-hi-0.22 model
+<https://alphacephei.com/vosk/models> vosk-model-small-hi-0.22 model
+
+# 1. Generate subtitles
+
+python make_video.py my_video_folder --mode subs
+
+# 2. Edit the text file (fix any speech recognition errors)
+
+nano my_video_folder/subtitles.txt
+
+# 3. Regenerate ASS file with your edits
+
+python make_video.py my_video_folder --mode regenerate-subs
+
+# 4. Create the final video
+
+python make_video.py my_video_folder --mode video

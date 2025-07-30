@@ -5,7 +5,7 @@ from mutagen.mp3 import MP3
 import argparse
 import re
 import pathlib
-from generate_subs import generate_ass_subtitles
+from generate_subs import generate_ass_subtitles, regenerate_ass_from_edited_txt
 
 FFMPEG = "/opt/homebrew/bin/ffmpeg"
 
@@ -102,25 +102,61 @@ def generate_final_video(clips, audio_path, ass_path, output_path, filter_comple
     if result.returncode != 0:
         raise RuntimeError("Failed to generate final video")
 
-def main(folder_path, style="modern"):
-    # Validate input files
-    images = sorted([os.path.join(folder_path, f) for f in os.listdir(folder_path)
-                     if f.lower().endswith((".png", ".jpg", ".jpeg"))])
+def generate_subtitles_only(folder_path):
+    """Generate subtitles only without creating video"""
     audio_path = os.path.join(folder_path, "audio.mp3")
     wav_path = os.path.join(folder_path, "audio.wav")
-    output_filename = os.path.basename(os.path.normpath(folder_path)) + ".mp4"
-    output_path = os.path.join(folder_path, output_filename)
-    temp_dir = os.path.join(folder_path, "temp_clips")
-    ass_path = os.path.join(temp_dir, "subtitles.ass")
-
-    if not images:
-        raise ValueError(f"No image files found in {folder_path}")
+    ass_path = os.path.join(folder_path, "subtitles.ass")
+    
     if not os.path.exists(audio_path):
         raise ValueError(f"Audio file not found: {audio_path}")
 
     # Convert mp3 to wav for Vosk
     if not os.path.exists(wav_path):
+        print("Converting MP3 to WAV for speech recognition...")
         subprocess.run([FFMPEG, "-y", "-i", audio_path, wav_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    print("Generating subtitles...")
+    generate_ass_subtitles(wav_path, ass_path)
+    
+    txt_path = ass_path.replace('.ass', '.txt')
+    print(f"✅ Subtitles generated:")
+    print(f"   ASS file: {ass_path}")
+    print(f"   Text file: {txt_path}")
+    print(f"\n📖 Review the text file to check subtitle accuracy before making video.")
+    print(f"✏️  Edit the text file to fix any errors, then run:")
+    print(f"   python make_video.py {folder_path} --mode regenerate-subs")
+
+def regenerate_subtitles_from_edited_txt(folder_path):
+    """Regenerate ASS file from edited text file"""
+    txt_path = os.path.join(folder_path, "subtitles.txt")
+    ass_path = os.path.join(folder_path, "subtitles.ass")
+    
+    if not os.path.exists(txt_path):
+        raise ValueError(f"Text file not found: {txt_path}. Generate subtitles first with --mode subs")
+    
+    print(f"🔄 Regenerating ASS file from edited text...")
+    regenerate_ass_from_edited_txt(txt_path, ass_path)
+    print(f"✅ ASS file updated: {ass_path}")
+    print(f"🎬 You can now create video with: python make_video.py {folder_path} --mode video")
+
+def create_video_only(folder_path):
+    """Create video using existing subtitles"""
+    # Validate input files
+    images = sorted([os.path.join(folder_path, f) for f in os.listdir(folder_path)
+                     if f.lower().endswith((".png", ".jpg", ".jpeg"))])
+    audio_path = os.path.join(folder_path, "audio.mp3")
+    ass_path = os.path.join(folder_path, "subtitles.ass")
+    output_filename = os.path.basename(os.path.normpath(folder_path)) + ".mp4"
+    output_path = os.path.join(folder_path, output_filename)
+    temp_dir = os.path.join(folder_path, "temp_clips")
+
+    if not images:
+        raise ValueError(f"No image files found in {folder_path}")
+    if not os.path.exists(audio_path):
+        raise ValueError(f"Audio file not found: {audio_path}")
+    if not os.path.exists(ass_path):
+        raise ValueError(f"Subtitle file not found: {ass_path}. Run with --mode subs first.")
 
     # Create temp directory
     os.makedirs(temp_dir, exist_ok=True)
@@ -130,11 +166,8 @@ def main(folder_path, style="modern"):
         per_image_duration = duration / len(images)
 
         print(f"Processing {len(images)} images with {per_image_duration:.2f}s per image...")
+        print("Using existing subtitles...")
         
-        # Generate .ass subtitles with word-level highlighting
-        print("Generating subtitles...")
-        generate_ass_subtitles(wav_path, ass_path)
-
         print("Generating clips...")
         clips = generate_clip_commands(images, per_image_duration, temp_dir)
         filter_complex, final_label = build_filter_chain(clips, per_image_duration)
@@ -143,8 +176,6 @@ def main(folder_path, style="modern"):
         generate_final_video(clips, audio_path, ass_path, output_path, filter_complex, final_label)
 
         print(f"✅ Video created at: {output_path}")
-        # os.remove(wav_path)
-        # shutil.rmtree(temp_dir)
         
     except Exception as e:
         print(f"❌ Error: {e}")
@@ -152,8 +183,75 @@ def main(folder_path, style="modern"):
     finally:
         print("🧹 Cleaned up temporary files")
 
+def main(folder_path, mode="full"):
+    """
+    Main function with different modes:
+    - 'full': Generate subtitles and create video (original behavior)
+    - 'subs': Generate subtitles only
+    - 'video': Create video using existing subtitles
+    - 'regenerate-subs': Regenerate ASS file from edited text file
+    """
+    if mode == "subs":
+        generate_subtitles_only(folder_path)
+    elif mode == "video":
+        create_video_only(folder_path)
+    elif mode == "regenerate-subs":
+        regenerate_subtitles_from_edited_txt(folder_path)
+    else:  # full mode - original behavior
+        # Validate input files
+        images = sorted([os.path.join(folder_path, f) for f in os.listdir(folder_path)
+                         if f.lower().endswith((".png", ".jpg", ".jpeg"))])
+        audio_path = os.path.join(folder_path, "audio.mp3")
+        wav_path = os.path.join(folder_path, "audio.wav")
+        output_filename = os.path.basename(os.path.normpath(folder_path)) + ".mp4"
+        output_path = os.path.join(folder_path, output_filename)
+        temp_dir = os.path.join(folder_path, "temp_clips")
+        ass_path = os.path.join(temp_dir, "subtitles.ass")
+
+        if not images:
+            raise ValueError(f"No image files found in {folder_path}")
+        if not os.path.exists(audio_path):
+            raise ValueError(f"Audio file not found: {audio_path}")
+
+        # Convert mp3 to wav for Vosk
+        if not os.path.exists(wav_path):
+            subprocess.run([FFMPEG, "-y", "-i", audio_path, wav_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        # Create temp directory
+        os.makedirs(temp_dir, exist_ok=True)
+
+        try:
+            duration = get_audio_duration(audio_path)
+            per_image_duration = duration / len(images)
+
+            print(f"Processing {len(images)} images with {per_image_duration:.2f}s per image...")
+            
+            # Generate .ass subtitles with word-level highlighting
+            print("Generating subtitles...")
+            generate_ass_subtitles(wav_path, ass_path)
+
+            print("Generating clips...")
+            clips = generate_clip_commands(images, per_image_duration, temp_dir)
+            filter_complex, final_label = build_filter_chain(clips, per_image_duration)
+            
+            print("Generating final video...")
+            generate_final_video(clips, audio_path, ass_path, output_path, filter_complex, final_label)
+
+            print(f"✅ Video created at: {output_path}")
+            os.remove(wav_path)
+            shutil.rmtree(temp_dir)
+            
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            raise
+        finally:
+            print("🧹 Cleaned up temporary files")
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("folder", help="Folder containing images, audio.mp3, and output.ass")
+    parser = argparse.ArgumentParser(description="Create video with Ken Burns effect and subtitles")
+    parser.add_argument("folder", help="Folder containing images, audio.mp3, and optionally subtitles.ass")
+    parser.add_argument("--mode", choices=["full", "subs", "video", "regenerate-subs"], default="full",
+                       help="Mode: 'full' (generate subs + video), 'subs' (generate subs only), 'video' (use existing subs), 'regenerate-subs' (regenerate ASS from edited text)")
+    
     args = parser.parse_args()
-    main(args.folder)
+    main(args.folder, args.mode)
