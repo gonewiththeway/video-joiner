@@ -167,7 +167,7 @@ def create_video_only(folder_path):
 
         print(f"Processing {len(images)} images with {per_image_duration:.2f}s per image...")
         print("Using existing subtitles...")
-        
+        wav_path = os.path.join(folder_path, "audio.wav")
         print("Generating clips...")
         clips = generate_clip_commands(images, per_image_duration, temp_dir)
         filter_complex, final_label = build_filter_chain(clips, per_image_duration)
@@ -176,7 +176,9 @@ def create_video_only(folder_path):
         generate_final_video(clips, audio_path, ass_path, output_path, filter_complex, final_label)
 
         print(f"✅ Video created at: {output_path}")
-        
+        shutil.rmtree(temp_dir)
+        os.remove(wav_path)
+
     except Exception as e:
         print(f"❌ Error: {e}")
         raise

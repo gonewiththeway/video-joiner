@@ -75,3 +75,9 @@ python make_video.py my_video_folder --mode regenerate-subs
 # 4. Create the final video
 
 python make_video.py my_video_folder --mode video
+
+for i in {64..73}; do
+python make_video.py /Users/atulpurohit/workspace/personal/video/output-ramayana/$i --mode video
+done
+
+python make_video.py /Users/atulpurohit/workspace/personal/video/output-ramayana/48 --mode regenerate-subs
